@@ -1,0 +1,8 @@
+[package]
+name = "webTools"
+version = "0.1.0"
+authors = ["EnzioG"]
+edition = "2018"
+
+[dependencies]
+yew = "0.12.0"
