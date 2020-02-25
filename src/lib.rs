@@ -7,7 +7,7 @@ pub struct Model {
     //value: String,
     velocity: f64,
     frequency: f64,
-
+    //存储结果
     lambda: f64,
 }
 
@@ -40,7 +40,8 @@ impl Component for Model {
                 self.velocity = new_value.parse().unwrap();
             }
             Msg::Clicked => {
-                self.lambda = calc();
+                self.lambda = calc(self.frequency, self.velocity);
+                //println!("波长为： {}mm", self.lambda);
             }
         }
         true
@@ -70,6 +71,7 @@ impl Component for Model {
     }
 }
 
-fn calc() -> f64 {
-    10000000.0
+fn calc(freq: f64, velo: f64) -> f64 {
+    let lambda = velo / 1000.0 / freq;
+    lambda
 }
