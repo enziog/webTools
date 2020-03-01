@@ -19,25 +19,27 @@ struct Database {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Client {
-    first_name: String,
-    last_name: String,
+    //first_name: String,
+    //last_name: String,
     description: String,
     //存储输入数据的变量
     frequency: f64,
     velocity: f64,
     //存储结果的变量
     lambda: f64,
+    pitch: f64,
 }
 
 impl Client {
     fn empty() -> Self {
         Client {
-            first_name: "".into(),
-            last_name: "".into(),
+            //first_name: "".into(),
+            //last_name: "".into(),
             description: "".into(),
             frequency: 0.0,
             velocity: 0.0,
             lambda: 0.0,
+            pitch: 0.0,
         }
     }
 }
@@ -46,6 +48,7 @@ impl Client {
 pub enum Scene {
     ClientsList,
     NewClientForm(Client),
+    TFMPWIForm,
     Settings,
 }
 
@@ -66,6 +69,7 @@ pub enum Msg {
     UpdateDescription(String),
     UpdateFrequency(f64),
     UpdateVelocity(f64),
+    Calc_l_p,
     Clear,
 }
 
@@ -95,6 +99,9 @@ impl Component for Model {
                 Msg::SwitchTo(Scene::NewClientForm(client)) => {
                     new_scene = Some(Scene::NewClientForm(client));
                 }
+                Msg::SwitchTo(Scene::TFMPWIForm) => {
+                    new_scene = Some(Scene::TFMPWIForm);
+                }
                 Msg::SwitchTo(Scene::Settings) => {
                     new_scene = Some(Scene::Settings);
                 }
@@ -112,6 +119,7 @@ impl Component for Model {
                 Msg::UpdateVelocity(val)=> {
                     client.velocity = val;
                 }
+                /*
                 Msg::UpdateFirstName(val) => {
                     println!("Input: {}", val);
                     client.first_name = val;
@@ -120,9 +128,19 @@ impl Component for Model {
                     println!("Input: {}", val);
                     client.last_name = val;
                 }
+                */
                 Msg::UpdateDescription(val) => {
                     println!("Input: {}", val);
                     client.description = val;
+                }
+                Msg::Calc_l_p=> {
+                    if (client.frequency == 0.0) | (client.velocity == 0.0) {
+                        client.description = "频率/声速中有0值，请检查".into()
+                    } else{
+                        client.lambda = client.velocity / 1000.0 / client.frequency;
+                        client.pitch = client.lambda / 2.0;
+                        client.description = format!("波长为{}mm\npitch最小值为{}mm", client.lambda, client.pitch);
+                    }
                 }
                 Msg::AddNew => {
                     let mut new_client = Client::empty();
@@ -138,6 +156,14 @@ impl Component for Model {
                         "Unexpected message during new client editing: {:?}",
                         unexpected
                     );
+                }
+            },
+            Scene::TFMPWIForm => match msg {
+                Msg::SwitchTo(Scene::ClientsList) => {
+                    new_scene = Some(Scene::ClientsList);
+                },
+                unexpected=> {
+                    panic!("Unexpected message for settings scene: {:?}", unexpected);
                 }
             },
             Scene::Settings => match msg {
@@ -169,22 +195,31 @@ impl Component for Model {
                     <div class="clients">
                         { for self.database.clients.iter().map(Renderable::render) }
                     </div>
-                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::NewClientForm(Client::empty())))>{ "Add New" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::NewClientForm(Client::empty())))>{ "波长&Pitch" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::TFMPWIForm))>{ "TFM PWI演示" }</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::Settings))>{ "Settings" }</button>
                 </div>
             },
             Scene::NewClientForm(ref client) => html! {
                 <div class="crm">
                     <div class="names">
-                        { client.view_first_name_input(&self.link) }
-                        { client.view_last_name_input(&self.link) }
+                        //{ client.view_first_name_input(&self.link) }
+                        //{ client.view_last_name_input(&self.link) }
                         { client.view_description_textarea(&self.link) }
                         { client.view_frequency_input(&self.link) }
                         { client.view_velocity_input(&self.link) }
                     </div>
-                    <button disabled=client.first_name.is_empty() || client.last_name.is_empty()
+                    <button onclick=self.link.callback(|_| Msg::Calc_l_p)>{ "计算" }</button>
+                    <button //disabled=client.first_name.is_empty() || client.last_name.is_empty()
                             onclick=self.link.callback(|_| Msg::AddNew)>{ "Add New" }</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::ClientsList))>{ "Go Back" }</button>
+                </div>
+            },
+            Scene::TFMPWIForm => html! {
+                <div class="tfm">
+                    <button>{"TFM演示"}</button>
+                    <button>{"PWI演示"}</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::ClientsList))>{ "返回" }</button>
                 </div>
             },
             Scene::Settings => html! {
@@ -201,10 +236,12 @@ impl Renderable for Client {
     fn render(&self) -> Html {
         html! {
             <div class="client">
-                <p>{ format!("First Name: {}", self.first_name) }</p>
-                <p>{ format!("Last Name: {}", self.last_name) }</p>
+                //<p>{ format!("First Name: {}", self.first_name) }</p>
+                //<p>{ format!("Last Name: {}", self.last_name) }</p>
                 <p>{ format!("Frequency: {}", self.frequency) }</p>
                 <p>{ format!("Velocity: {}", self.velocity) }</p>
+                <p>{ format!("Lambda: {}", self.lambda) }</p>
+                <p>{ format!("Pitch: {}", self.pitch) }</p>
                 <p>{ "Description:" }</p>
                 { markdown::render_markdown(&self.description) }
             </div>
@@ -229,6 +266,7 @@ impl Client {
                    oninput=link.callback(|e: InputData| Msg::UpdateVelocity(e.value.parse().unwrap())) />
         }
     }
+    /*
     fn view_first_name_input(&self, link: &ComponentLink<Model>) -> Html {
         html! {
             <input class="new-client firstname"
@@ -246,6 +284,7 @@ impl Client {
                    oninput=link.callback(|e: InputData| Msg::UpdateLastName(e.value)) />
         }
     }
+    */
     fn view_description_textarea(&self, link: &ComponentLink<Model>) -> Html {
         html! {
             <textarea class=("new-client", "description")
