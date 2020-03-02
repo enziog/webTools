@@ -14,11 +14,11 @@ const KEY: &'static str = "yew.crm.database";
 
 #[derive(Serialize, Deserialize)]
 struct Database {
-    clients: Vec<Client>,
+    probes: Vec<Probe>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Client {
+pub struct Probe {
     //first_name: String,
     //last_name: String,
     description: String,
@@ -30,9 +30,9 @@ pub struct Client {
     pitch: f64,
 }
 
-impl Client {
+impl Probe {
     fn empty() -> Self {
-        Client {
+        Probe {
             //first_name: "".into(),
             //last_name: "".into(),
             description: "".into(),
@@ -46,8 +46,8 @@ impl Client {
 
 #[derive(Debug)]
 pub enum Scene {
-    ClientsList,
-    NewClientForm(Client),
+    SceneList,
+    NewProbeForm(Probe),
     TFMPWIForm,
     Settings,
 }
@@ -69,7 +69,7 @@ pub enum Msg {
     UpdateDescription(String),
     UpdateFrequency(f64),
     UpdateVelocity(f64),
-    Calc_l_p,
+    CalcLP,
     Clear,
 }
 
@@ -81,23 +81,23 @@ impl Component for Model {
         let storage = StorageService::new(Area::Local);
         let Json(database) = storage.restore(KEY);
         let database = database.unwrap_or_else(|_| Database {
-            clients: Vec::new(),
+            probes: Vec::new(),
         });
         Model {
             link,
             storage,
             dialog: DialogService::new(),
             database,
-            scene: Scene::ClientsList,
+            scene: Scene::SceneList,
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         let mut new_scene = None;
         match self.scene {
-            Scene::ClientsList => match msg {
-                Msg::SwitchTo(Scene::NewClientForm(client)) => {
-                    new_scene = Some(Scene::NewClientForm(client));
+            Scene::SceneList => match msg {
+                Msg::SwitchTo(Scene::NewProbeForm(probe)) => {
+                    new_scene = Some(Scene::NewProbeForm(probe));
                 }
                 Msg::SwitchTo(Scene::TFMPWIForm) => {
                     new_scene = Some(Scene::TFMPWIForm);
@@ -107,60 +107,60 @@ impl Component for Model {
                 }
                 unexpected => {
                     panic!(
-                        "Unexpected message when clients list shown: {:?}",
+                        "Unexpected message when probes list shown: {:?}",
                         unexpected
                     );
                 }
             },
-            Scene::NewClientForm(ref mut client) => match msg {
+            Scene::NewProbeForm(ref mut probe) => match msg {
                 Msg::UpdateFrequency(val)=> {
-                    client.frequency = val;
+                    probe.frequency = val;
                 }
                 Msg::UpdateVelocity(val)=> {
-                    client.velocity = val;
+                    probe.velocity = val;
                 }
                 /*
                 Msg::UpdateFirstName(val) => {
                     println!("Input: {}", val);
-                    client.first_name = val;
+                    probe.first_name = val;
                 }
                 Msg::UpdateLastName(val) => {
                     println!("Input: {}", val);
-                    client.last_name = val;
+                    probe.last_name = val;
                 }
                 */
                 Msg::UpdateDescription(val) => {
                     println!("Input: {}", val);
-                    client.description = val;
+                    probe.description = val;
                 }
-                Msg::Calc_l_p=> {
-                    if (client.frequency == 0.0) | (client.velocity == 0.0) {
-                        client.description = "频率/声速中有0值，请检查".into()
+                Msg::CalcLP=> {
+                    if (probe.frequency == 0.0) | (probe.velocity == 0.0) {
+                        probe.description = "频率/声速中有0值，请检查".into()
                     } else{
-                        client.lambda = client.velocity / 1000.0 / client.frequency;
-                        client.pitch = client.lambda / 2.0;
-                        client.description = format!("波长为{}mm\npitch最小值为{}mm", client.lambda, client.pitch);
+                        probe.lambda = probe.velocity / 1000.0 / probe.frequency;
+                        probe.pitch = probe.lambda / 2.0;
+                        probe.description = format!("波长为{}mm\npitch最小值为{}mm", probe.lambda, probe.pitch);
                     }
                 }
                 Msg::AddNew => {
-                    let mut new_client = Client::empty();
-                    ::std::mem::swap(client, &mut new_client);
-                    self.database.clients.push(new_client);
+                    let mut new_probe = Probe::empty();
+                    ::std::mem::swap(probe, &mut new_probe);
+                    self.database.probes.push(new_probe);
                     self.storage.store(KEY, Json(&self.database));
                 }
-                Msg::SwitchTo(Scene::ClientsList) => {
-                    new_scene = Some(Scene::ClientsList);
+                Msg::SwitchTo(Scene::SceneList) => {
+                    new_scene = Some(Scene::SceneList);
                 }
                 unexpected => {
                     panic!(
-                        "Unexpected message during new client editing: {:?}",
+                        "Unexpected message during new probe editing: {:?}",
                         unexpected
                     );
                 }
             },
             Scene::TFMPWIForm => match msg {
-                Msg::SwitchTo(Scene::ClientsList) => {
-                    new_scene = Some(Scene::ClientsList);
+                Msg::SwitchTo(Scene::SceneList) => {
+                    new_scene = Some(Scene::SceneList);
                 },
                 unexpected=> {
                     panic!("Unexpected message for settings scene: {:?}", unexpected);
@@ -170,12 +170,12 @@ impl Component for Model {
                 Msg::Clear => {
                     let ok = { self.dialog.confirm("Do you really want to clear the data?") };
                     if ok {
-                        self.database.clients.clear();
+                        self.database.probes.clear();
                         self.storage.remove(KEY);
                     }
                 }
-                Msg::SwitchTo(Scene::ClientsList) => {
-                    new_scene = Some(Scene::ClientsList);
+                Msg::SwitchTo(Scene::SceneList) => {
+                    new_scene = Some(Scene::SceneList);
                 }
                 unexpected => {
                     panic!("Unexpected message for settings scene: {:?}", unexpected);
@@ -190,52 +190,60 @@ impl Component for Model {
 
     fn view(&self) -> Html {
         match self.scene {
-            Scene::ClientsList => html! {
+            Scene::SceneList => html! {
                 <div class="crm">
-                    <div class="clients">
-                        { for self.database.clients.iter().map(Renderable::render) }
+                    <div class="probes">
+                        { for self.database.probes.iter().map(Renderable::render) }
                     </div>
-                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::NewClientForm(Client::empty())))>{ "波长&Pitch" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::NewProbeForm(Probe::empty())))>{ "波长&Pitch" }</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::TFMPWIForm))>{ "TFM PWI演示" }</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::Settings))>{ "Settings" }</button>
                 </div>
             },
-            Scene::NewClientForm(ref client) => html! {
+            Scene::NewProbeForm(ref probe) => html! {
                 <div class="crm">
                     <div class="names">
-                        //{ client.view_first_name_input(&self.link) }
-                        //{ client.view_last_name_input(&self.link) }
-                        { client.view_description_textarea(&self.link) }
-                        { client.view_frequency_input(&self.link) }
-                        { client.view_velocity_input(&self.link) }
+                        //{ probe.view_first_name_input(&self.link) }
+                        //{ probe.view_last_name_input(&self.link) }
+                        { probe.view_description_textarea(&self.link) }
+                        { probe.view_frequency_input(&self.link) }
+                        { probe.view_velocity_input(&self.link) }
                     </div>
-                    <button onclick=self.link.callback(|_| Msg::Calc_l_p)>{ "计算" }</button>
-                    <button //disabled=client.first_name.is_empty() || client.last_name.is_empty()
+                    <button onclick=self.link.callback(|_| Msg::CalcLP)>{ "计算" }</button>
+                    <button //disabled=probe.first_name.is_empty() || probe.last_name.is_empty()
                             onclick=self.link.callback(|_| Msg::AddNew)>{ "Add New" }</button>
-                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::ClientsList))>{ "Go Back" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "Go Back" }</button>
                 </div>
             },
             Scene::TFMPWIForm => html! {
                 <div class="tfm">
                     <button>{"TFM演示"}</button>
                     <button>{"PWI演示"}</button>
-                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::ClientsList))>{ "返回" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "返回" }</button>
+                    <hr/>
+                    <img src="Acquisition-FMC-ET-01.gif"  alt="TFM数据采集" title="TFM数据采集FMC"/>
+                    <img src="RECONSTRUCTION-TFM-ET.gif"  alt="TFM数据重建" title="TFM数据重建"/>
+                    <hr/>
+                    //<img src="Acquisition-FMC-ET-01.gif"  alt="TFM数据采集" title="TFM数据重建"/>
+                    //视频播放,替换
+                    <video src="N600_HVAC_HEATEXCHANGER_ECTINSPECTION_SUBTITLEMASTER_w(2)_480.mp4" controls=true />
+                    //<img  dynsrc="file:///D:/Rust/webTools/img/N600_HVAC_HEATEXCHANGER_ECTINSPECTION_SUBTITLEMASTER_w(2)_480.mp4"  start="mouseover" alt="PWI激发"/>
                 </div>
             },
             Scene::Settings => html! {
                 <div>
                     <button onclick=self.link.callback(|_| Msg::Clear)>{ "Clear Database" }</button>
-                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::ClientsList))>{ "Go Back" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "Go Back" }</button>
                 </div>
             },
         }
     }
 }
 
-impl Renderable for Client {
+impl Renderable for Probe {
     fn render(&self) -> Html {
         html! {
-            <div class="client">
+            <div class="probe">
                 //<p>{ format!("First Name: {}", self.first_name) }</p>
                 //<p>{ format!("Last Name: {}", self.last_name) }</p>
                 <p>{ format!("Frequency: {}", self.frequency) }</p>
@@ -249,10 +257,10 @@ impl Renderable for Client {
     }
 }
 
-impl Client {
+impl Probe {
     fn view_frequency_input(&self, link: &ComponentLink<Model>) -> Html {
         html! {
-            <input class="new-client frequency"
+            <input class="new-probe frequency"
                    placeholder="频率"
                    value=&self.frequency
                    oninput=link.callback(|e: InputData| Msg::UpdateFrequency(e.value.parse().unwrap())) />
@@ -260,7 +268,7 @@ impl Client {
     }
     fn view_velocity_input(&self, link: &ComponentLink<Model>) -> Html {
         html! {
-            <input class="new-client velocity"
+            <input class="new-probe velocity"
                    placeholder="声速"
                    value=&self.velocity
                    oninput=link.callback(|e: InputData| Msg::UpdateVelocity(e.value.parse().unwrap())) />
@@ -269,7 +277,7 @@ impl Client {
     /*
     fn view_first_name_input(&self, link: &ComponentLink<Model>) -> Html {
         html! {
-            <input class="new-client firstname"
+            <input class="new-probe firstname"
                    placeholder="First name"
                    value=&self.first_name
                    oninput=link.callback(|e: InputData| Msg::UpdateFirstName(e.value)) />
@@ -278,7 +286,7 @@ impl Client {
 
     fn view_last_name_input(&self, link: &ComponentLink<Model>) -> Html {
         html! {
-            <input class="new-client lastname"
+            <input class="new-probe lastname"
                    placeholder="Last name"
                    value=&self.last_name
                    oninput=link.callback(|e: InputData| Msg::UpdateLastName(e.value)) />
@@ -287,7 +295,7 @@ impl Client {
     */
     fn view_description_textarea(&self, link: &ComponentLink<Model>) -> Html {
         html! {
-            <textarea class=("new-client", "description")
+            <textarea class=("new-probe", "description")
                placeholder="Description"
                value=&self.description
                oninput=link.callback(|e: InputData| Msg::UpdateDescription(e.value)) />
@@ -363,7 +371,7 @@ impl Component for Model {
                     <button onclick=self.link.callback(|_| Msg::Clicked)>{ "计算" }</button>
                 </div>
                 <div>
-                    { client.view_vel_input(&self.link)}
+                    { probe.view_vel_input(&self.link)}
                     {&self.lambda}
                 </div>
             </div>
