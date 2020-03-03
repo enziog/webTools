@@ -44,6 +44,52 @@ impl Probe {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BeamAngle {
+    incidence_min: f64,
+    refraction_min: f64,
+
+    incidence_max: f64,
+    refraction_max: f64,
+
+    incidence_min_steel: f64,
+    incidence_max_steel: f64,
+
+    velocity_steel: f64,
+    velocity_medium: f64,
+    //reflection: f64,
+}
+
+impl BeamAngle {
+    fn empty() -> Self {
+        BeamAngle {
+            incidence_min: 0.0,
+            refraction_min: 0.0,
+
+            incidence_max: 0.0,
+            refraction_max: 0.0,
+
+            incidence_min_steel: 0.0,
+            incidence_max_steel: 0.0,
+
+            velocity_steel: 0.0,
+            velocity_medium: 0.0,
+            //reflection: f64,
+        }
+    }
+
+    fn incidence_min_input(&self, link: &ComponentLink<Model>) -> Html {
+        html!{
+        <input class="beam-angle"
+                   placeholder="入射角（小）"
+                   //不更新内容的话会怎么样？
+                   //value=&self.frequency
+                   oninput=link.callback(|e: InputData| Msg::UpdateIncidenceAngleMin(e.value.parse().unwrap())) />
+        }
+    }
+}
+
+
 #[derive(Debug)]
 pub enum Scene {
     SceneList,
@@ -69,6 +115,7 @@ pub enum Msg {
     UpdateDescription(String),
     UpdateFrequency(f64),
     UpdateVelocity(f64),
+    UpdateIncidenceAngleMin(f64),
     CalcLP,
     Clear,
 }
@@ -156,6 +203,7 @@ impl Component for Model {
                         "Unexpected message during new probe editing: {:?}",
                         unexpected
                     );
+                    //错误处理需要更人性化
                 }
             },
             Scene::TFMPWIForm => match msg {
@@ -165,6 +213,7 @@ impl Component for Model {
                 unexpected=> {
                     panic!("Unexpected message for settings scene: {:?}", unexpected);
                 }
+                //错误处理方式需改进
             },
             Scene::Settings => match msg {
                 Msg::Clear => {
@@ -180,6 +229,7 @@ impl Component for Model {
                 unexpected => {
                     panic!("Unexpected message for settings scene: {:?}", unexpected);
                 }
+                //错误处理方式需改进
             },
         }
         if let Some(new_scene) = new_scene.take() {
@@ -226,6 +276,7 @@ impl Component for Model {
                     <hr/>
                     //<img src="Acquisition-FMC-ET-01.gif"  alt="TFM数据采集" title="TFM数据重建"/>
                     //视频播放,替换
+                    //目前视频播放仅支持mp4, webm和ogg格式
                     <video src="N600_HVAC_HEATEXCHANGER_ECTINSPECTION_SUBTITLEMASTER_w(2)_480.mp4" controls=true />
                     //<img  dynsrc="file:///D:/Rust/webTools/img/N600_HVAC_HEATEXCHANGER_ECTINSPECTION_SUBTITLEMASTER_w(2)_480.mp4"  start="mouseover" alt="PWI激发"/>
                 </div>
@@ -260,17 +311,19 @@ impl Renderable for Probe {
 impl Probe {
     fn view_frequency_input(&self, link: &ComponentLink<Model>) -> Html {
         html! {
-            <input class="new-probe frequency"
+            <input class="new-probe"
                    placeholder="频率"
-                   value=&self.frequency
+                   //不更新内容的话会怎么样？
+                   //value=&self.frequency
                    oninput=link.callback(|e: InputData| Msg::UpdateFrequency(e.value.parse().unwrap())) />
         }
     }
     fn view_velocity_input(&self, link: &ComponentLink<Model>) -> Html {
         html! {
-            <input class="new-probe velocity"
+            <input class="new-probe"
                    placeholder="声速"
-                   value=&self.velocity
+                   //先注释掉更新内容这一行，目前看来可以正常计算
+                   //value=&self.velocity
                    oninput=link.callback(|e: InputData| Msg::UpdateVelocity(e.value.parse().unwrap())) />
         }
     }
