@@ -9,6 +9,10 @@ use yew::format::Json;
 use yew::services::storage::Area;
 use yew::services::{DialogService, StorageService};
 use yew::{html, Component, ComponentLink, Html, InputData, Renderable, ShouldRender};
+use std::env;
+use std::fs::File;
+use std::io::prelude::*;
+use crate::Scene::SceneList;
 
 const KEY: &'static str = "yew.crm.database";
 
@@ -95,6 +99,7 @@ pub enum Scene {
     SceneList,
     NewProbeForm(Probe),
     TFMPWIForm,
+    RefractionAngle,
     Settings,
 }
 
@@ -110,8 +115,8 @@ pub struct Model {
 pub enum Msg {
     SwitchTo(Scene),
     AddNew,
-    UpdateFirstName(String),
-    UpdateLastName(String),
+    //UpdateFirstName(String),
+    //UpdateLastName(String),
     UpdateDescription(String),
     UpdateFrequency(f64),
     UpdateVelocity(f64),
@@ -180,14 +185,17 @@ impl Component for Model {
                     println!("Input: {}", val);
                     probe.description = val;
                 }
-                Msg::CalcLP=> {
+                Msg::CalcLP => {
                     if (probe.frequency == 0.0) | (probe.velocity == 0.0) {
                         probe.description = "频率/声速中有0值，请检查".into()
-                    } else{
+                    } else {
                         probe.lambda = probe.velocity / 1000.0 / probe.frequency;
                         probe.pitch = probe.lambda / 2.0;
                         probe.description = format!("波长为{}mm\npitch最小值为{}mm", probe.lambda, probe.pitch);
                     }
+                }
+                Msg::CalcLP => {
+                    //TBD
                 }
                 Msg::AddNew => {
                     let mut new_probe = Probe::empty();
@@ -210,14 +218,22 @@ impl Component for Model {
                 Msg::SwitchTo(Scene::SceneList) => {
                     new_scene = Some(Scene::SceneList);
                 },
-                unexpected=> {
+                unexpected => {
                     panic!("Unexpected message for settings scene: {:?}", unexpected);
-                }
+                },
                 //错误处理方式需改进
+            },
+            Scene::RefractionAngle => match msg {
+                Msg::SwitchTo(Scene::SceneList) => {
+                    new_scene = Some(Scene::SceneList);
+                },
+                unexpected => {
+                    panic!("未知参数，折射角计算模块{:?}", unexpected);
+                },
             },
             Scene::Settings => match msg {
                 Msg::Clear => {
-                    let ok = { self.dialog.confirm("Do you really want to clear the data?") };
+                    let ok = { self.dialog.confirm("确实要清除数据吗?") };
                     if ok {
                         self.database.probes.clear();
                         self.storage.remove(KEY);
@@ -261,14 +277,17 @@ impl Component for Model {
                     </div>
                     <button onclick=self.link.callback(|_| Msg::CalcLP)>{ "计算" }</button>
                     <button //disabled=probe.first_name.is_empty() || probe.last_name.is_empty()
-                            onclick=self.link.callback(|_| Msg::AddNew)>{ "Add New" }</button>
-                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "Go Back" }</button>
+                            onclick=self.link.callback(|_| Msg::AddNew)>{ "保存" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "返回" }</button>
                 </div>
             },
             Scene::TFMPWIForm => html! {
                 <div class="tfm">
                     <button>{"TFM演示"}</button>
                     <button>{"PWI演示"}</button>
+                    <a href="https://eddyfi.com/academy.html">
+                    <button>{"TFM线上学习课程"}</button>
+                    </a>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "返回" }</button>
                     <hr/>
                     <img src="Acquisition-FMC-ET-01.gif"  alt="TFM数据采集" title="TFM数据采集FMC"/>
@@ -281,10 +300,15 @@ impl Component for Model {
                     //<img  dynsrc="file:///D:/Rust/webTools/img/N600_HVAC_HEATEXCHANGER_ECTINSPECTION_SUBTITLEMASTER_w(2)_480.mp4"  start="mouseover" alt="PWI激发"/>
                 </div>
             },
+            Scene::RefractionAngle => html! {
+                <div class="refraction">
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "返回" }</button>
+                </div>
+            },
             Scene::Settings => html! {
                 <div>
-                    <button onclick=self.link.callback(|_| Msg::Clear)>{ "Clear Database" }</button>
-                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "Go Back" }</button>
+                    <button onclick=self.link.callback(|_| Msg::Clear)>{ "清除所有数据" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "返回" }</button>
                 </div>
             },
         }
@@ -349,7 +373,7 @@ impl Probe {
     fn view_description_textarea(&self, link: &ComponentLink<Model>) -> Html {
         html! {
             <textarea class=("new-probe", "description")
-               placeholder="Description"
+               placeholder="结果"
                value=&self.description
                oninput=link.callback(|e: InputData| Msg::UpdateDescription(e.value)) />
         }
