@@ -91,15 +91,43 @@ impl BeamAngle {
                    oninput=link.callback(|e: InputData| Msg::UpdateIncidenceAngleMin(e.value.parse().unwrap())) />
         }
     }
+    fn incidence_max_input(&self, link: &ComponentLink<Model>) -> Html {
+        html!{
+        <input class="beam-angle"
+                   placeholder="入射角（小）"
+                   //不更新内容的话会怎么样？
+                   //value=&self.frequency
+                   oninput=link.callback(|e: InputData| Msg::UpdateIncidenceAngleMax(e.value.parse().unwrap())) />
+        }
+    }
+    fn velocity_incidence_input(&self, link: &ComponentLink<Model>) -> Html {
+        html!{
+        <input class="beam-angle"
+                   placeholder="入射角（小）"
+                   //不更新内容的话会怎么样？
+                   //value=&self.frequency
+                   oninput=link.callback(|e: InputData| Msg::UpdateVelocityIncidence(e.value.parse().unwrap())) />
+        }
+    }
+    fn velocity_refraction_input(&self, link: &ComponentLink<Model>) -> Html {
+        html!{
+        <input class="beam-angle"
+                   placeholder="入射角（小）"
+                   //不更新内容的话会怎么样？
+                   //value=&self.frequency
+                   oninput=link.callback(|e: InputData| Msg::UpdateVelocityRefraction(e.value.parse().unwrap())) />
+        }
+    }
 }
 
 
 #[derive(Debug)]
 pub enum Scene {
     SceneList,
-    NewProbeForm(Probe),
+    ProbeForm(Probe),
+    //BeamAngleForm(BeamAngle),
     TFMPWIForm,
-    RefractionAngle,
+    RefractionAngle(BeamAngle),
     Settings,
 }
 
@@ -115,13 +143,20 @@ pub struct Model {
 pub enum Msg {
     SwitchTo(Scene),
     AddNew,
+    CalcLP,
+    //探头计算
     //UpdateFirstName(String),
     //UpdateLastName(String),
     UpdateDescription(String),
     UpdateFrequency(f64),
     UpdateVelocity(f64),
-    UpdateIncidenceAngleMin(f64),
-    CalcLP,
+    //折射角计算
+    UpdateIncidenceAngleMin(f64),//u32?
+    UpdateIncidenceAngleMax(f64),//u32?
+    UpdateVelocityIncidence(f64),//u32?
+    UpdateVelocityRefraction(f64),//u32?
+    UpdateVelocitySteel(f64),//u32
+    //
     Clear,
 }
 
@@ -148,8 +183,8 @@ impl Component for Model {
         let mut new_scene = None;
         match self.scene {
             Scene::SceneList => match msg {
-                Msg::SwitchTo(Scene::NewProbeForm(probe)) => {
-                    new_scene = Some(Scene::NewProbeForm(probe));
+                Msg::SwitchTo(Scene::ProbeForm(probe)) => {
+                    new_scene = Some(Scene::ProbeForm(probe));
                 }
                 Msg::SwitchTo(Scene::TFMPWIForm) => {
                     new_scene = Some(Scene::TFMPWIForm);
@@ -164,7 +199,7 @@ impl Component for Model {
                     );
                 }
             },
-            Scene::NewProbeForm(ref mut probe) => match msg {
+            Scene::ProbeForm(ref mut probe) => match msg {
                 Msg::UpdateFrequency(val)=> {
                     probe.frequency = val;
                 }
@@ -223,7 +258,7 @@ impl Component for Model {
                 },
                 //错误处理方式需改进
             },
-            Scene::RefractionAngle => match msg {
+            Scene::RefractionAngle(ref mut beam_angle) => match msg {
                 Msg::SwitchTo(Scene::SceneList) => {
                     new_scene = Some(Scene::SceneList);
                 },
@@ -261,7 +296,7 @@ impl Component for Model {
                     <div class="probes">
                         { for self.database.probes.iter().map(Renderable::render) }
                     </div>
-                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::NewProbeForm(Probe::empty())))>{ "波长&Pitch" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::ProbeForm(Probe::empty())))>{ "波长&Pitch" }</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::TFMPWIForm))>{ "TFM PWI演示" }</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::Settings))>{ "Settings" }</button>
                 </div>";
@@ -272,12 +307,13 @@ impl Component for Model {
                     <div class="probes">
                         { for self.database.probes.iter().map(Renderable::render) }
                     </div>
-                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::NewProbeForm(Probe::empty())))>{ "波长&Pitch" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::ProbeForm(Probe::empty())))>{ "波长&Pitch" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::RefractionAngle(BeamAngle::empty())))>{ "PA探头折射角" }</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::TFMPWIForm))>{ "TFM PWI演示" }</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::Settings))>{ "Settings" }</button>
                 </div>
             },
-            Scene::NewProbeForm(ref probe) => html! {
+            Scene::ProbeForm(ref probe) => html! {
                 <div class="crm">
                     <div class="names">
                         //{ probe.view_first_name_input(&self.link) }
@@ -311,7 +347,7 @@ impl Component for Model {
                     //<img  dynsrc="file:///D:/Rust/webTools/img/N600_HVAC_HEATEXCHANGER_ECTINSPECTION_SUBTITLEMASTER_w(2)_480.mp4"  start="mouseover" alt="PWI激发"/>
                 </div>
             },
-            Scene::RefractionAngle => html! {
+            Scene::RefractionAngle(ref beam_angle) => html! {
                 <div class="refraction">
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "返回" }</button>
                 </div>
