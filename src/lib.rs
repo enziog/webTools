@@ -254,7 +254,19 @@ impl Component for Model {
         true
     }
 
+
     fn view(&self) -> Html {
+
+        /*
+        let mut html_content = "<div class="crm">
+                    <div class="probes">
+                        { for self.database.probes.iter().map(Renderable::render) }
+                    </div>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::NewProbeForm(Probe::empty())))>{ "波长&Pitch" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::TFMPWIForm))>{ "TFM PWI演示" }</button>
+                    <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::Settings))>{ "Settings" }</button>
+                </div>";
+        */
         match self.scene {
             Scene::SceneList => html! {
                 <div class="crm">
@@ -309,6 +321,8 @@ impl Component for Model {
                 <div>
                     <button onclick=self.link.callback(|_| Msg::Clear)>{ "清除所有数据" }</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "返回" }</button>
+                    <hr>
+                    <a href="mailto:enzio.g@qq.com">{"技术支持（邮箱）"}</a>
                 </div>
             },
         }
