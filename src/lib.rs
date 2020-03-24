@@ -61,6 +61,8 @@ pub struct BeamAngle {
 
     velocity_steel: f64,
     velocity_medium: f64,
+
+    result: String,
     //reflection: f64,
 }
 
@@ -79,6 +81,8 @@ impl BeamAngle {
             velocity_steel: 0.0,
             velocity_medium: 0.0,
             //reflection: f64,
+
+            result: "".to_string(),
         }
     }
 
@@ -94,7 +98,7 @@ impl BeamAngle {
     fn incidence_max_input(&self, link: &ComponentLink<Model>) -> Html {
         html!{
         <input class="beam-angle"
-                   placeholder="入射角（小）"
+                   placeholder="入射角（大）"
                    //不更新内容的话会怎么样？
                    //value=&self.frequency
                    oninput=link.callback(|e: InputData| Msg::UpdateIncidenceAngleMax(e.value.parse().unwrap())) />
@@ -103,16 +107,16 @@ impl BeamAngle {
     fn velocity_incidence_input(&self, link: &ComponentLink<Model>) -> Html {
         html!{
         <input class="beam-angle"
-                   placeholder="入射角（小）"
+                   placeholder="介质声速（入射角）"
                    //不更新内容的话会怎么样？
                    //value=&self.frequency
                    oninput=link.callback(|e: InputData| Msg::UpdateVelocityIncidence(e.value.parse().unwrap())) />
         }
     }
     fn velocity_refraction_input(&self, link: &ComponentLink<Model>) -> Html {
-        html!{
+        html! {
         <input class="beam-angle"
-                   placeholder="入射角（小）"
+                   placeholder="介质声速（折射角）"
                    //不更新内容的话会怎么样？
                    //value=&self.frequency
                    oninput=link.callback(|e: InputData| Msg::UpdateVelocityRefraction(e.value.parse().unwrap())) />
@@ -120,6 +124,20 @@ impl BeamAngle {
     }
 }
 
+impl Renderable for BeamAngle {
+    fn render(&self) -> Html {
+        html! {
+            <div class="beam-angle">
+                <p>{ format!("Incidence Min: {}", self.incidence_min) }</p>
+                <p>{ format!("Incidence Max: {}", self.incidence_max) }</p>
+                <p>{ format!("Incidence in Steel Min: {}", self.incidence_min_steel) }</p>
+                <p>{ format!("Incidence in Steel Max: {}", self.incidence_max_steel) }</p>
+                <p>{ "Description:" }</p>
+                { markdown::render_markdown(&self.result) }
+            </div>
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum Scene {
@@ -143,19 +161,25 @@ pub struct Model {
 pub enum Msg {
     SwitchTo(Scene),
     AddNew,
-    CalcLP,
     //探头计算
     //UpdateFirstName(String),
     //UpdateLastName(String),
     UpdateDescription(String),
     UpdateFrequency(f64),
     UpdateVelocity(f64),
+    CalcLP,
     //折射角计算
-    UpdateIncidenceAngleMin(f64),//u32?
-    UpdateIncidenceAngleMax(f64),//u32?
-    UpdateVelocityIncidence(f64),//u32?
-    UpdateVelocityRefraction(f64),//u32?
-    UpdateVelocitySteel(f64),//u32
+    UpdateIncidenceAngleMin(f64),
+    //u32?
+    UpdateIncidenceAngleMax(f64),
+    //u32?
+    UpdateVelocityIncidence(f64),
+    //u32?
+    UpdateVelocityRefraction(f64),
+    //u32?
+    UpdateVelocitySteel(f64),
+    //u32
+    CalcRefraction,
     //
     Clear,
 }
@@ -185,6 +209,9 @@ impl Component for Model {
             Scene::SceneList => match msg {
                 Msg::SwitchTo(Scene::ProbeForm(probe)) => {
                     new_scene = Some(Scene::ProbeForm(probe));
+                }
+                Msg::SwitchTo(Scene::RefractionAngle(beam_abngle)) => {
+                    new_scene = Some(Scene::RefractionAngle(beam_abngle));
                 }
                 Msg::SwitchTo(Scene::TFMPWIForm) => {
                     new_scene = Some(Scene::TFMPWIForm);
@@ -229,7 +256,7 @@ impl Component for Model {
                         probe.description = format!("波长为{}mm\npitch最小值为{}mm", probe.lambda, probe.pitch);
                     }
                 }
-                Msg::CalcLP => {
+                Msg::CalcRefraction => {
                     //TBD
                 }
                 Msg::AddNew => {
@@ -349,6 +376,12 @@ impl Component for Model {
             },
             Scene::RefractionAngle(ref beam_angle) => html! {
                 <div class="refraction">
+                    { beam_angle.incidence_min_input(&self.link) }
+                    { beam_angle.incidence_max_input(&self.link) }
+                    { beam_angle.velocity_incidence_input(&self.link)}
+                    { beam_angle.velocity_refraction_input(&self.link) }
+                    <hr/>
+                    <button onclick=self.link.callback(|_| Msg::CalcRefraction)>{"计算折射角"}</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "返回" }</button>
                 </div>
             },
