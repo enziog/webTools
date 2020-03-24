@@ -294,8 +294,8 @@ impl Component for Model {
             },
             Scene::TFMPWIForm => html! {
                 <div class="tfm">
-                    <button>{"TFM演示"}</button>
-                    <button>{"PWI演示"}</button>
+                    <button>{"FMC-TFM演示"}</button>
+                    <button>{"PWI-TFM演示"}</button>
                     <a href="https://eddyfi.com/academy.html">
                     <button>{"TFM线上学习课程"}</button>
                     </a>
