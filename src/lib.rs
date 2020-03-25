@@ -5,14 +5,14 @@ extern crate serde_derive;
 
 mod markdown;
 
+use crate::Scene::SceneList;
+use std::env;
+use std::fs::File;
+use std::io::prelude::*;
 use yew::format::Json;
 use yew::services::storage::Area;
 use yew::services::{DialogService, StorageService};
 use yew::{html, Component, ComponentLink, Html, InputData, Renderable, ShouldRender};
-use std::env;
-use std::fs::File;
-use std::io::prelude::*;
-use crate::Scene::SceneList;
 
 const KEY: &'static str = "yew.crm.database";
 
@@ -56,10 +56,11 @@ pub struct BeamAngle {
     incidence_max: f64,
     refraction_max: f64,
 
-    incidence_min_steel: f64,
-    incidence_max_steel: f64,
+    refraction_steel_min: f64,
+    refraction_steel_max: f64,
 
     velocity_steel: f64,
+    velocity_incidence: f64,
     velocity_medium: f64,
 
     result: String,
@@ -75,41 +76,35 @@ impl BeamAngle {
             incidence_max: 0.0,
             refraction_max: 0.0,
 
-            incidence_min_steel: 0.0,
-            incidence_max_steel: 0.0,
+            refraction_steel_min: 0.0,
+            refraction_steel_max: 0.0,
 
             velocity_steel: 0.0,
+            velocity_incidence: 0.0,
             velocity_medium: 0.0,
             //reflection: f64,
-
-            result: "".to_string(),
+            result: "".into(),
         }
     }
 
     fn incidence_min_input(&self, link: &ComponentLink<Model>) -> Html {
-        html!{
+        html! {
         <input class="beam-angle"
                    placeholder="入射角（小）"
-                   //不更新内容的话会怎么样？
-                   //value=&self.frequency
                    oninput=link.callback(|e: InputData| Msg::UpdateIncidenceAngleMin(e.value.parse().unwrap())) />
         }
     }
     fn incidence_max_input(&self, link: &ComponentLink<Model>) -> Html {
-        html!{
+        html! {
         <input class="beam-angle"
                    placeholder="入射角（大）"
-                   //不更新内容的话会怎么样？
-                   //value=&self.frequency
                    oninput=link.callback(|e: InputData| Msg::UpdateIncidenceAngleMax(e.value.parse().unwrap())) />
         }
     }
     fn velocity_incidence_input(&self, link: &ComponentLink<Model>) -> Html {
-        html!{
+        html! {
         <input class="beam-angle"
                    placeholder="介质声速（入射角）"
-                   //不更新内容的话会怎么样？
-                   //value=&self.frequency
                    oninput=link.callback(|e: InputData| Msg::UpdateVelocityIncidence(e.value.parse().unwrap())) />
         }
     }
@@ -117,22 +112,29 @@ impl BeamAngle {
         html! {
         <input class="beam-angle"
                    placeholder="介质声速（折射角）"
-                   //不更新内容的话会怎么样？
-                   //value=&self.frequency
                    oninput=link.callback(|e: InputData| Msg::UpdateVelocityRefraction(e.value.parse().unwrap())) />
+        }
+    }
+    fn view_result(&self, link: &ComponentLink<Model>) -> Html {
+        html! {
+            <textarea class=("beam-angle", "result")
+               placeholder="结果"
+               value=&self.result
+               oninput=link.callback(|e: InputData| Msg::UpdateDescription(e.value)) />
         }
     }
 }
 
+//这段代码的用途是什么？？？
 impl Renderable for BeamAngle {
     fn render(&self) -> Html {
         html! {
             <div class="beam-angle">
                 <p>{ format!("Incidence Min: {}", self.incidence_min) }</p>
                 <p>{ format!("Incidence Max: {}", self.incidence_max) }</p>
-                <p>{ format!("Incidence in Steel Min: {}", self.incidence_min_steel) }</p>
-                <p>{ format!("Incidence in Steel Max: {}", self.incidence_max_steel) }</p>
-                <p>{ "Description:" }</p>
+                <p>{ format!("Incidence in Steel Min: {}", self.refraction_steel_min) }</p>
+                <p>{ format!("Incidence in Steel Max: {}", self.refraction_steel_max) }</p>
+                <p>{ "Result:" }</p>
                 { markdown::render_markdown(&self.result) }
             </div>
         }
@@ -191,9 +193,7 @@ impl Component for Model {
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
         let storage = StorageService::new(Area::Local);
         let Json(database) = storage.restore(KEY);
-        let database = database.unwrap_or_else(|_| Database {
-            probes: Vec::new(),
-        });
+        let database = database.unwrap_or_else(|_| Database { probes: Vec::new() });
         Model {
             link,
             storage,
@@ -227,10 +227,10 @@ impl Component for Model {
                 }
             },
             Scene::ProbeForm(ref mut probe) => match msg {
-                Msg::UpdateFrequency(val)=> {
+                Msg::UpdateFrequency(val) => {
                     probe.frequency = val;
                 }
-                Msg::UpdateVelocity(val)=> {
+                Msg::UpdateVelocity(val) => {
                     probe.velocity = val;
                 }
                 /*
@@ -253,12 +253,11 @@ impl Component for Model {
                     } else {
                         probe.lambda = probe.velocity / 1000.0 / probe.frequency;
                         probe.pitch = probe.lambda / 2.0;
-                        probe.description = format!("波长为{}mm\npitch最小值为{}mm", probe.lambda, probe.pitch);
+                        probe.description =
+                            format!("波长为{}mm\npitch最小值为{}mm", probe.lambda, probe.pitch);
                     }
                 }
-                Msg::CalcRefraction => {
-                    //TBD
-                }
+
                 Msg::AddNew => {
                     let mut new_probe = Probe::empty();
                     ::std::mem::swap(probe, &mut new_probe);
@@ -279,19 +278,48 @@ impl Component for Model {
             Scene::TFMPWIForm => match msg {
                 Msg::SwitchTo(Scene::SceneList) => {
                     new_scene = Some(Scene::SceneList);
-                },
+                }
                 unexpected => {
                     panic!("Unexpected message for settings scene: {:?}", unexpected);
-                },
+                }
                 //错误处理方式需改进
             },
             Scene::RefractionAngle(ref mut beam_angle) => match msg {
                 Msg::SwitchTo(Scene::SceneList) => {
                     new_scene = Some(Scene::SceneList);
-                },
+                }
+                Msg::UpdateIncidenceAngleMin(val) => {
+                    beam_angle.incidence_min = val;
+                }
+                Msg::UpdateIncidenceAngleMax(val) => {
+                    beam_angle.incidence_max = val;
+                }
+                Msg::UpdateVelocityIncidence(val) => {
+                    beam_angle.velocity_incidence = val;
+                }
+                Msg::UpdateVelocityRefraction(val) => {
+                    beam_angle.velocity_medium = val;
+                }
+                /*
+                Msg::UpdateRefractionSteelMin(val) => {
+                    beam_angle.refraction_steel_min = val;
+                }
+                Msg::UpdateRefractionSteelMax(val) => {
+                    beam_angle.refraction_steel_max = val;
+                }
+                */
+                Msg::CalcRefraction => {
+                    //还未计算角度
+                    beam_angle.refraction_min = beam_angle.incidence_min * 1.0;
+                    beam_angle.refraction_max = beam_angle.incidence_max * 1.0;
+                    beam_angle.result = format!(
+                        "折射角范围为{}度～{}度\n按入射声速{}m/s折射声速{}m/s计算",
+                        beam_angle.refraction_min, beam_angle.refraction_max, beam_angle.velocity_incidence, beam_angle.velocity_medium
+                    );
+                }
                 unexpected => {
                     panic!("未知参数，折射角计算模块{:?}", unexpected);
-                },
+                }
             },
             Scene::Settings => match msg {
                 Msg::Clear => {
@@ -306,8 +334,7 @@ impl Component for Model {
                 }
                 unexpected => {
                     panic!("Unexpected message for settings scene: {:?}", unexpected);
-                }
-                //错误处理方式需改进
+                } //错误处理方式需改进
             },
         }
         if let Some(new_scene) = new_scene.take() {
@@ -315,7 +342,6 @@ impl Component for Model {
         }
         true
     }
-
 
     fn view(&self) -> Html {
         /*
@@ -383,6 +409,8 @@ impl Component for Model {
                     <hr/>
                     <button onclick=self.link.callback(|_| Msg::CalcRefraction)>{"计算折射角"}</button>
                     <button onclick=self.link.callback(|_| Msg::SwitchTo(Scene::SceneList))>{ "返回" }</button>
+                    <hr/>
+                    { beam_angle.view_result(&self.link)}
                 </div>
             },
             Scene::Settings => html! {
@@ -428,8 +456,6 @@ impl Probe {
         html! {
             <input class="new-probe"
                    placeholder="声速"
-                   //先注释掉更新内容这一行，目前看来可以正常计算
-                   //value=&self.velocity
                    oninput=link.callback(|e: InputData| Msg::UpdateVelocity(e.value.parse().unwrap())) />
         }
     }
