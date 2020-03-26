@@ -6,9 +6,9 @@ extern crate serde_derive;
 mod markdown;
 
 use crate::Scene::SceneList;
-use std::env;
-use std::fs::File;
-use std::io::prelude::*;
+//use std::env;
+//use std::fs::File;
+//use std::io::prelude::*;
 use yew::format::Json;
 use yew::services::storage::Area;
 use yew::services::{DialogService, StorageService};
@@ -191,7 +191,7 @@ impl Component for Model {
     type Properties = ();
 
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let storage = StorageService::new(Area::Local);
+        let storage = StorageService::new(Area::Local).expect("存储功能处于关闭状态");
         let Json(database) = storage.restore(KEY);
         let database = database.unwrap_or_else(|_| Database { probes: Vec::new() });
         Model {
