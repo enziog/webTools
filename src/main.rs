@@ -1,3 +1,3 @@
 fn main() {
-    yew::start_app::<webTools::Model>();
+    yew::start_app::<web_tools::Model>();
 }

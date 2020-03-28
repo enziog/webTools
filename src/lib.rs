@@ -5,7 +5,6 @@ extern crate serde_derive;
 
 mod markdown;
 
-use crate::Scene::SceneList;
 //use std::env;
 //use std::fs::File;
 //use std::io::prelude::*;
@@ -13,6 +12,7 @@ use yew::format::Json;
 use yew::services::storage::Area;
 use yew::services::{DialogService, StorageService};
 use yew::{html, Component, ComponentLink, Html, InputData, Renderable, ShouldRender};
+
 
 const KEY: &'static str = "yew.crm.database";
 

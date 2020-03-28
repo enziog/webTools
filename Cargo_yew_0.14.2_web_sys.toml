@@ -1,12 +1,15 @@
 [package]
-name = "web_tools"
+name = "webTools"
 version = "0.1.0"
 authors = ["EnzioG"]
 edition = "2018"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
-yew = {version = "0.14", features = ["std_web"]}
-wasm-bindgen = "0.2"
+yew = {version = "0.14", features = ["web_sys"]}
+wasm-bindgen = "0.2.60"
 pulldown-cmark = "0.1.2"
 serde_derive = "1"
 serde = "1"
